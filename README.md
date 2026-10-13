@@ -1,96 +1,141 @@
-# Generalizing Verifiable Instruction Following
+# IFBench tiếng Việt
 
-This repo contains IFBench, which is a new, challenging benchmark for precise instruction following.
-Read the <a href="https://arxiv.org/pdf/2507.02833">IFBench paper</a>, accepted to NeurIPS 2025, D&B.
+Đây là bản địa hóa IFBench dành cho việc tạo và đánh giá dữ liệu tuân thủ chỉ
+dẫn tiếng Việt. Mã nguồn gốc thuộc dự án **Generalizing Verifiable Instruction
+Following** của Allen Institute for AI; bài báo được chấp nhận tại NeurIPS 2025.
 
-## IFBench
-IFBench consists of two parts:
+## Những gì đã được bản địa hóa
 
-- OOD Constraints: 58 new and challenging constraints, with corresponding verification functions. The constraint templates are combined with prompts from a held-out set of WildChat (Zhao et al. 2024).
+- Toàn bộ 83 chỉ dẫn trong registry được diễn đạt tự nhiên bằng tiếng Việt.
+- Từ khóa mặc định, hư từ, liên từ, đại từ, tên người, nhãn câu hỏi, mẫu đầu ra,
+  tiêu đề CSV và các đáp án cố định đã được đổi sang tiếng Việt.
+- Các tác vụ bảng chữ cái dùng đủ 29 chữ cái tiếng Việt.
+- Bộ tách từ/câu không còn phụ thuộc vào mô hình Punkt và bộ gán nhãn từ loại
+  tiếng Anh. Một “đơn vị từ” được định nghĩa rõ là một chuỗi chữ cái hoặc chữ số
+  Unicode liên tiếp ở các tác vụ đếm.
+- Các bộ kiểm tra có thể chấp nhận rỗng hoặc kiểm tra sai hiện vật trước đây đã
+  được siết chặt, gồm ngoặc lồng, mục phụ, thụt dòng, trích dẫn và mẫu đầu ra.
 
-- (optionally) Multiturn Constraint Isolation in 2 turns: The prompt and the constraint are separated over two turns, i.e. the first turn is the user prompt and the model's response to the prompt, and the second turn is the constraint that modifies the initial prompt.
+Tên lớp và mã `instruction_id` cũ được giữ nguyên để tương thích API. Vì vậy,
+một số tên như `english_capital` hoặc `odd_even_syllables` là tên kế thừa; mô tả
+và hành vi thực tế đã được bản địa hóa.
 
-- New IF-RLVR training constraints: 29 new and challenging constraints, with corresponding verification functions. 
-
-## Installation
-
-IFBench is pip-installable. The package ships all OOD verifiers as well as the
-classic Google IFEval verifiers, so it can serve as a single source of truth
-for both registries.
-
-```bash
-pip install ifbench
-# or
-uv add ifbench
-```
-
-To work on IFBench itself, clone and sync with [uv](https://docs.astral.sh/uv/):
+## Cài đặt và kiểm thử
 
 ```bash
-git clone https://github.com/allenai/IFBench.git
-cd IFBench
 uv sync
+uv run pytest -q
 ```
 
-The package is namespaced under `ifbench` — submodules are `ifbench.instructions`,
-`ifbench.classic_instructions`, `ifbench.instructions_registry`, and
-`ifbench.instructions_util`. The test jsonl is bundled inside the wheel; access
-it via `ifbench.data_path()`.
-
-### Programmatic use
+## Dùng trong mã Python
 
 ```python
 from ifbench import instructions_registry
 
 checker_cls = instructions_registry.INSTRUCTION_DICT["keywords:existence"]
 checker = checker_cls("keywords:existence")
-checker.build_description(keywords=["cat", "dog"])
-checker.check_following("I saw a cat and a dog today.")  # True
+instruction = checker.build_description(keywords=["mây", "gió"])
+
+print(instruction)
+# Câu trả lời phải chứa tất cả từ khóa sau: ['gió', 'mây'].
+
+checker.check_following("Mây trôi trong gió.")  # True
 ```
 
-`INSTRUCTION_DICT` contains 83 verifiers in total: 25 classic IFEval keys
-(prefixed `keywords:`, `language:`, `length_constraints:`,
-`detectable_content:`, `detectable_format:`, `combination:`, `startend:`,
-`change_case:`, `punctuation:`) plus 58 IFBench OOD keys.
+Khi tạo dữ liệu huấn luyện tự động, chỉ nên lấy ID từ:
 
-## How to run the evaluation
-You need two jsonl files, one the IFBench_test.jsonl file (in the data folder) and one your file with eval prompts and completions (see sample_output.jsonl as an example). Then run:
+```python
+instructions_registry.VIETNAMESE_RECOMMENDED_INSTRUCTION_IDS
+```
+
+Danh sách này gồm 70 tác vụ có thể kiểm tra hoàn toàn bằng cấu trúc hoặc phép
+đếm xác định. 13 tác vụ còn lại nằm trong
+`VIETNAMESE_EXPERIMENTAL_REASONS`, kèm lý do không nên dùng làm nhãn thưởng tự
+động tuyệt đối. Xem [VIETNAMESE_COMPATIBILITY.md](VIETNAMESE_COMPATIBILITY.md)
+để biết danh sách và nguyên tắc lựa chọn.
+
+## Lưu ý về dữ liệu đi kèm
+
+Hai tệp `data/IFBench_test.jsonl` và `ifbench/data/IFBench_test.jsonl` là dữ liệu
+kiểm thử tiếng Anh nguyên bản của upstream, được giữ lại để truy xuất nguồn gốc
+và so sánh hồi quy. **Không dùng trực tiếp hai tệp này làm dữ liệu huấn luyện
+tiếng Việt.** Hãy ghép các mô tả do `build_description()` sinh ra với tập câu
+hỏi nền bằng tiếng Việt của bạn; mọi hiện vật phát sinh mặc định giờ đã là tiếng
+Việt.
+
+## Tạo dữ liệu train/validation cho RL
+
+Không cần cung cấp đầu vào để tạo ngay bộ dữ liệu mặc định gồm 1.000 mẫu train
+và 100 mẫu validation:
+
 ```bash
-uv run python -m run_eval --input_data=IFBench_test.jsonl --input_response_data=sample_output.jsonl --output_dir=eval
+uv run python generate_vi_rl_dataset.py
 ```
 
-Note: In the paper we generally report the prompt-level loose accuracy of IFBench. When we generate for evaluation, we use a temperature of 0 and adjust the maximum generated tokens depending on the model type, i.e. for thinking models we allow to generate more tokens and we then process the output to extract the answer without the reasoning chains.
+Kết quả nằm trong `data/vi_rl/train.jsonl`, `data/vi_rl/val.jsonl` và
+`data/vi_rl/manifest.json`. Mỗi mẫu có các trường IFBench (`prompt`,
+`instruction_id_list`, `kwargs`) để chấm thưởng bằng bộ kiểm tra, đồng thời có
+trường `messages` thuận tiện cho pipeline RL dạng hội thoại. Chỉ 70 tác vụ trong
+`VIETNAMESE_RECOMMENDED_INSTRUCTION_IDS` được dùng; các tác vụ thử nghiệm bị
+loại mặc định.
 
-## Released Datasets
-You can find our released datasets in this [collection](https://huggingface.co/collections/allenai/ifbench-683f590687f61b512558cdf1), which contains the [test data](https://huggingface.co/datasets/allenai/IFBench_test), the [multi-turn test data](https://huggingface.co/datasets/allenai/IFBench_multi-turn) and the [IF-RLVR training data](https://huggingface.co/datasets/allenai/IF_multi_constraints_upto5).
+Có thể dùng ngân hàng câu hỏi riêng ở dạng TXT hoặc JSONL:
 
-## RLVR for Precise Instruction Following
-We also release our IF-RLVR code, as part of [open-instruct](https://github.com/allenai/open-instruct). You can run this [GRPO script](https://github.com/allenai/open-instruct/blob/main/open_instruct/grpo_fast.py), using our [training data](https://huggingface.co/datasets/allenai/IF_multi_constraints_upto5). This is an [example command](https://github.com/allenai/open-instruct/blob/main/scripts/train/rlvr/valpy_if_grpo_fast.sh).
+```bash
+uv run python generate_vi_rl_dataset.py \
+  --base-prompts du_lieu_goc.jsonl \
+  --prompt-field prompt \
+  --train-size 10000 \
+  --val-size 1000 \
+  --seed 42
+```
 
-The new training constraints and verification functions are here: https://github.com/allenai/open-instruct/tree/main/open_instruct/IFEvalG
+Tệp TXT dùng một câu hỏi trên mỗi dòng. Việc chia tập và sinh tham số là xác
+định theo `--seed`; generator loại câu hỏi trùng giữa train và validation.
 
-## Licensing
+### Gọi model và chấm thưởng song song
 
-This codebase is licensed under Apache 2.0 as given in [LICENSE](./LICENSE).
+`generate_and_verify.py` dùng Python client chính thức của OpenAI để gọi một
+API tương thích OpenAI bằng nhiều worker. Mỗi câu trả lời được chấm ngay bằng
+cả bộ kiểm tra strict và loose; kết quả được ghi tăng dần nên có thể tiếp tục
+sau khi gián đoạn bằng `--resume`.
 
-The data is licensed under ODC-BY-1.0. It is intended for research and educational use in accordance with Ai2's Responsible Use Guidelines. The dataset includes output data generated from third party models that are subject to separate terms governing their use.
+```bash
+export API_KEY="khóa-truy-cập-của-bạn"
+uv run python generate_and_verify.py \
+  --api-base http://may-chu-vllm:8000/v1 \
+  --input-file data/vi_rl/val.jsonl \
+  --workers 16 \
+  --max-tokens 2048
+```
 
+Nếu server chỉ phục vụ một model, script tự lấy ID từ `/models`; nếu có nhiều
+model, truyền thêm `--model`. Kết quả chi tiết và báo cáo tổng hợp được lưu mặc
+định trong `results/`. Chạy thử nhanh với `--limit 10`, rồi bỏ tùy chọn này để
+chạy toàn bộ dữ liệu.
 
-## Acknowledgements
+## Đánh giá
 
-Parts of IFBench are built upon and extend [IFEval](https://github.com/google-research/google-research/tree/master/instruction_following_eval) (Zhou et al. 2023) and we would like to thank them for their great work!
+Chuẩn bị một tệp JSONL đầu vào và một tệp JSONL câu trả lời theo định dạng mẫu,
+sau đó chạy:
 
+```bash
+uv run python -m run_eval \
+  --input_data=du_lieu_tieng_viet.jsonl \
+  --input_response_data=cau_tra_loi.jsonl \
+  --output_dir=eval
+```
 
-## Citation
+## Giấy phép và trích dẫn
 
-If you used this repository or our models, please cite our work:
+Mã nguồn được phát hành theo Apache 2.0. Dữ liệu upstream dùng ODC-BY-1.0.
 
 ```bibtex
 @misc{pyatkin2025generalizing,
-   title={Generalizing Verifiable Instruction Following}, 
-   author={Valentina Pyatkin and Saumya Malik and Victoria Graf and Hamish Ivison and Shengyi Huang and Pradeep Dasigi and Nathan Lambert and Hannaneh Hajishirzi},
-   year={2025},
+  title={Generalizing Verifiable Instruction Following},
+  author={Valentina Pyatkin and Saumya Malik and Victoria Graf and Hamish Ivison and Shengyi Huang and Pradeep Dasigi and Nathan Lambert and Hannaneh Hajishirzi},
+  year={2025},
   journal={Advances in Neural Information Processing Systems},
-  volume={38},
-  year={2025}
+  volume={38}
 }
+```

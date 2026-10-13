@@ -14,4 +14,7 @@ build/
 # eval/
 
 # Response files with secrets in name
-data/*responses*.jsonl
+data/
+
+# Generated model responses and verification reports
+results/

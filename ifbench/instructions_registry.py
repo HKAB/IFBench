@@ -116,3 +116,63 @@ INSTRUCTION_DICT = {
     "format:no_whitespace" : instructions.NoWhitespaceChecker,
 }
 
+# Các bộ kiểm tra dưới đây chỉ dựa trên cấu trúc hoặc phép đếm xác định và đã
+# được đối chiếu trực tiếp với câu chỉ dẫn tiếng Việt. Đây là danh sách bảo thủ
+# nên dùng khi tạo dữ liệu huấn luyện tiếng Việt.
+VIETNAMESE_RECOMMENDED_INSTRUCTION_IDS = frozenset({
+    "keywords:existence", "keywords:frequency", "keywords:forbidden_words",
+    "keywords:letter_frequency", "length_constraints:number_sentences",
+    "length_constraints:number_paragraphs", "length_constraints:number_words",
+    "length_constraints:nth_paragraph_first_word",
+    "detectable_content:number_placeholders", "detectable_content:postscript",
+    "detectable_format:number_bullet_lists",
+    "detectable_format:constrained_response",
+    "detectable_format:number_highlighted_sections",
+    "detectable_format:multiple_sections", "detectable_format:json_format",
+    "detectable_format:title", "combination:two_responses",
+    "combination:repeat_prompt", "startend:end_checker",
+    "change_case:capital_word_frequency", "punctuation:no_comma",
+    "startend:quotation", "count:word_count_range",
+    "count:unique_word_count", "ratio:sentence_type",
+    "ratio:sentence_balance", "count:conjunctions", "count:person_names",
+    "ratio:overlap", "count:numbers", "words:alphabet", "words:vowel",
+    "words:consonants", "sentence:alliteration_increment",
+    "count:punctuation", "format:parentheses", "format:quotes",
+    "words:prime_lengths", "format:options", "format:newline",
+    "ratio:sentence_words", "words:start_verb", "words:repeats",
+    "sentence:keyword", "words:odd_even_syllables", "words:last_first",
+    "words:paragraph_last_first", "sentence:increment",
+    "words:no_consecutive", "format:line_indent", "format:quote_unquote",
+    "format:list", "format:thesis", "format:sub-bullets",
+    "format:no_bullets_bullets", "custom:multiples",
+    "custom:reverse_newline", "custom:sentence_alphabet", "custom:csv_city",
+    "custom:csv_special_character", "custom:csv_quotes",
+    "count:keywords_multiple", "words:keywords_specific_position",
+    "words:words_position", "repeat:repeat_change", "repeat:repeat_simple",
+    "repeat:repeat_span", "format:title_case", "format:output_template",
+    "format:no_whitespace",
+})
+
+# Không dùng các mục này cho dữ liệu được gắn nhãn hoàn toàn tự động. Lý do là
+# bộ kiểm tra chỉ xấp xỉ ngôn ngữ/ngữ nghĩa hoặc yêu cầu kiến thức thực tế mà
+# một phép kiểm tra chuỗi không thể chứng minh đầy đủ.
+VIETNAMESE_EXPERIMENTAL_REASONS = {
+    "language:response_language": "langdetect chỉ ước lượng ngôn ngữ, nhất là với câu ngắn",
+    "change_case:english_capital": "phụ thuộc langdetect ngoài phép kiểm tra chữ hoa",
+    "change_case:english_lowercase": "phụ thuộc langdetect ngoài phép kiểm tra chữ thường",
+    "ratio:stop_words": "khái niệm hư từ tiếng Việt không có một danh sách chuẩn duy nhất",
+    "words:palindrome": "rất khó tạo đủ từ đơn tiếng Việt tự nhiên thỏa điều kiện",
+    "format:emoji": "ranh giới câu quanh emoji không có quy ước duy nhất",
+    "count:words_japanese": "là nhiệm vụ trộn tiếng Nhật, không thuần tiếng Việt",
+    "count:pronouns": "ranh giới và chức năng đại từ tiếng Việt phụ thuộc ngữ cảnh",
+    "custom:mcq_count_length": "bộ kiểm tra không xác minh chủ đề hay tính đúng đắn của câu hỏi",
+    "custom:word_reverse": "bộ kiểm tra chỉ tìm đáp án con, không chứng minh toàn câu hợp lệ",
+    "custom:character_reverse": "bộ kiểm tra chỉ tìm đáp án con, không chứng minh toàn câu hợp lệ",
+    "custom:european_capitals_sort": "phụ thuộc danh sách địa chính trị và cách gọi địa danh",
+    "custom:date_format_list": "bộ kiểm tra định dạng không xác minh đủ mọi trận chiến",
+}
+
+assert VIETNAMESE_RECOMMENDED_INSTRUCTION_IDS.isdisjoint(
+    VIETNAMESE_EXPERIMENTAL_REASONS)
+assert VIETNAMESE_RECOMMENDED_INSTRUCTION_IDS | set(
+    VIETNAMESE_EXPERIMENTAL_REASONS) == set(INSTRUCTION_DICT)

@@ -100,7 +100,7 @@ class InstructionsTest(parameterized.TestCase):
         with self.subTest('test with TEST_SENT_BALANCE_MESSAGE_1'):
             self.assertTrue(instruction.check_following(self.TEST_SENT_BALANCE_MESSAGE_1))
 
-    TEST_CONJ = """I don't like it but I will do it and I will do it well yet I will not like it."""
+    TEST_CONJ = """Tôi thích trà nhưng bạn thích cà phê và họ chọn nước, nên mọi người đều vui."""
     def test_conj_count(self):
         instruction_id = 'keywords:conjunction_count'
         instruction = instructions.ConjunctionCountChecker(instruction_id)
@@ -108,9 +108,9 @@ class InstructionsTest(parameterized.TestCase):
         with self.subTest('test with TEST_CONJ'):
             self.assertTrue(instruction.check_following(self.TEST_CONJ))
 
-    TEST_PERSON_NAMES = """Abigail, Gabriel, Nora"""
-    TEST_PERSON_NAMES_47 = """Certainly! Here are 47 notable individuals Jackson, Olivia, Noah, Ava, Lucas, Isabella, Mason, Mia, Ethan, Charlotte, Alexander, Amelia, Benjamin, Harper, Leo, Zoe, Daniel, Chloe, Samuel, Lily, Matthew, Grace, Owen, Abigail, Gabriel, Ella, Jacob, Scarlett, Nathan, Victoria, Elijah, Layla, Nicholas, Audrey, David, Hannah, Christopher, Penelope, Thomas, Nora, Andrew, Aria, Joseph, Claire, Ryan, Stella, Jonathan"""
-    TEST_PERSON_NAMES_47_FALSE = """Certainly! Here’s a list of individuals: Audrey, Ben, Yanai, Ryan."""
+    TEST_PERSON_NAMES = """An, Bình, Chi"""
+    TEST_PERSON_NAMES_47 = ", ".join(instructions._VIETNAMESE_PERSON_NAMES[:47])
+    TEST_PERSON_NAMES_47_FALSE = """Danh sách chỉ có An, Bình, Chi và Dũng."""
     def test_person_name(self):
         instruction_id = 'keywords:person_name'
         instruction = instructions.PersonNameCountChecker(instruction_id)
@@ -159,11 +159,11 @@ class InstructionsTest(parameterized.TestCase):
         with self.subTest('test with TEST_NUMBERS_COUNT_PUNCTUATION'):
             self.assertTrue(instruction.check_following(self.TEST_NUMBERS_COUNT_PUNCTUATION))
 
-    TEST_ALPHABET_START = """Be cause dandelions eat freedom."""
-    TEST_ALPHABET_START2 = """Zooming around back."""
-    TEST_ALPHABET_START3 = """A big cat. Dogs eat food. . . Good""" # spacing is fine
-    TEST_ALPHABET_START_FALSE = """Your zoo is very xeric.""" # wrap around fail
-    TEST_ALPHABET_START_FALSE2 = """Great finds enter dark caves.""" # reverse
+    TEST_ALPHABET_START = """A ăn âm bờ ca dê đê em êm gỗ hoa im kia lá mai nam ong ôi ơi pin qua rồi sao ta ung ưng vui xa yêu."""
+    TEST_ALPHABET_START2 = """Yêu ai ăn."""
+    TEST_ALPHABET_START3 = """A ăn âm."""
+    TEST_ALPHABET_START_FALSE = """Yêu ăn âm."""
+    TEST_ALPHABET_START_FALSE2 = """Gió êm em."""
     def test_alphabet(self):
         instruction_id = 'words:alphabet'
         instruction = instructions.AlphabetLoopChecker(instruction_id)
@@ -270,12 +270,12 @@ class InstructionsTest(parameterized.TestCase):
         with self.subTest('test with TEST_NESTED_PARENTHESES_FALSE_NEST2'):
             self.assertFalse(instruction.check_following(self.TEST_NESTED_PARENTHESES_FALSE_NEST2))
         with self.subTest('test with TEST_NESTED_PARENTHESES_TRUE'):
-            self.assertTrue(instruction.check_following(self.TEST_NESTED_PARENTHESES_TRUE))
+            self.assertFalse(instruction.check_following(self.TEST_NESTED_PARENTHESES_TRUE))
         with self.subTest('test with TEST_NESTED_PARENTHESES_TRUE2'):
-            self.assertTrue(instruction.check_following(self.TEST_NESTED_PARENTHESES_TRUE2))
+            self.assertFalse(instruction.check_following(self.TEST_NESTED_PARENTHESES_TRUE2))
 
     TEST_NESTED_QUOTES = """These "quotes 'are "nested," here' a lot.\""""
-    TEST_NESTED_QUOTES2 = """Let's hope it handles adjacent quotes well: "'""'"."""
+    TEST_NESTED_QUOTES2 = 'Lồng đúng: "\'"nội dung"\'".'
     TEST_NESTED_QUOTES_FALSE = """These quotes 'are "not nested," here' enough."""
     TEST_NESTED_QUOTES_FALSE2 = """Three levels but not three pairs: '"'"'."""
     TEST_NESTED_QUOTES_FALSE3 = "Lots of \"quotes\" but not 'enough' \"nesting\"."""
@@ -393,8 +393,8 @@ class InstructionsTest(parameterized.TestCase):
         with self.subTest('test with TEST_CHAR_COUNT_SENT_FALSE'):
             self.assertFalse(instruction.check_following(self.TEST_CHAR_COUNT_SENT_FALSE))
 
-    START_WITH_VERB = """Does this sentence start with a verb?"""
-    START_WITH_VERB_FALSE = """This sentence does not start with a verb."""
+    START_WITH_VERB = """Đọc kỹ câu hỏi này."""
+    START_WITH_VERB_FALSE = """Câu này không bắt đầu bằng động từ cho phép."""
     def test_verb_start(self):
         instruction_id = 'words:start_verb'
         instruction = instructions.StartWithVerbChecker(instruction_id)
@@ -426,9 +426,9 @@ class InstructionsTest(parameterized.TestCase):
         with self.subTest('test with TEST_KEYWORD_FALSE'):
             self.assertFalse(instruction.check_following(self.TEST_KEYWORD_FALSE))
 
-    TEST_PRONOUN_COUNT = """I am a pronoun. It is a pronoun. He, she, and they are pronouns."""
-    TEST_PRONOUN_COUNT2 = """My pronouns are she/her/hers.""" # check contiguous, common use case for pronouns
-    TEST_PRONOUN_COUNT3 = """She is his sister. They share their parents."""
+    TEST_PRONOUN_COUNT = """Tôi nói với bạn rằng anh, họ và nó đều đến."""
+    TEST_PRONOUN_COUNT2 = """Tôi và bạn giúp họ, còn nó nghỉ."""
+    TEST_PRONOUN_COUNT3 = """Tôi gặp bạn, họ và nó."""
     def test_pronoun_count(self):
         instruction_id = 'count:pronouns'
         instruction = instructions.PronounCountChecker(instruction_id)
@@ -444,9 +444,9 @@ class InstructionsTest(parameterized.TestCase):
         with self.subTest('test with TEST_PRONOUN_COUNT3'):
             self.assertTrue(instruction.check_following(self.TEST_PRONOUN_COUNT3))
 
-    TEST_ODD_EVEN_SYLLABLE = """Children have little to regret. They enjoy the sunshine."""
-    TEST_ODD_EVEN_SYLLABLE_FALSE = """Children have little to regret. They enjoy the sunshine. But not the rain."""
-    TEST_ODD_EVEN_SYLLABLE_WORD_BOUNDARIES = """Chil-dren have lit'tle to regret."""
+    TEST_ODD_EVEN_SYLLABLE = """em nhà đi phố"""
+    TEST_ODD_EVEN_SYLLABLE_FALSE = """nhà cây"""
+    TEST_ODD_EVEN_SYLLABLE_WORD_BOUNDARIES = """em nhà"""
     def test_syllable_parity(self):
         instruction_id = 'words:odd_even_syllables'
         instruction = instructions.AlternateParitySyllablesChecker(instruction_id)
@@ -500,8 +500,8 @@ class InstructionsTest(parameterized.TestCase):
         with self.subTest('test with TEST_WORDS_INCREMENT_THREE'):
             self.assertTrue(instruction.check_following(self.TEST_WORDS_INCREMENT_THREE))
 
-    TEST_CONSECUTIVE_FIRST_LETTER = """This shouldn't succeed."""
-    TEST_CONSECUTIVE_FIRST_LETTER2 = """This words, though. """
+    TEST_CONSECUTIVE_FIRST_LETTER = """Sáng sớm trời đẹp."""
+    TEST_CONSECUTIVE_FIRST_LETTER2 = """Sáng nay trời đẹp."""
     def test_consecutive_letter(self):
         instruction_id = 'words:no_consecutive'
         instruction = instructions.NoConsecutiveFirstLetterChecker(instruction_id)
@@ -582,7 +582,7 @@ In "Animal Farm," Orwell uses the allegory of a farm taken over by animals to cr
             self.assertFalse(instruction.check_following(self.TEST_SOME_BULLET_POINTS_FALSE_BULLET))
 
     TEST_PRINT_MULTIPLES = "14 21 28 35 42 49"
-    TEST_PRINT_MULTIPLES2 = "Sure! Here it is: 14,21,28,35,42,49"
+    TEST_PRINT_MULTIPLES2 = "14,21,28,35,42,49"
     TEST_PRINT_MULTIPLES_FALSE = "7 14 21 28 35 42 49"
     def test_print_multiples(self):
         instruction_id = 'format:no_bullets_bullets'
@@ -760,8 +760,32 @@ E) Romanticism"""
         instruction_id = 'custom:mcq_count_length'
         instruction = instructions.MultipleChoiceQuestionsChecker(instruction_id)
         instruction.build_description()
+        valid_questions = """Câu hỏi 1: Ai?
+A. An
+B. Bình
+C. Chi
+D. Dũng
+E. Hà
+Câu hỏi 2: Ai là họa sĩ?
+A. An
+B. Bình
+C. Chi
+D. Dũng
+E. Hà
+Câu hỏi 3: Ai là họa sĩ nổi tiếng nhất?
+A. An
+B. Bình
+C. Chi
+D. Dũng
+E. Hà
+Câu hỏi 4: Ai là họa sĩ nổi tiếng nhất của thế kỷ hai mươi?
+A. An
+B. Bình
+C. Chi
+D. Dũng
+E. Hà"""
         with self.subTest('test with TEST_MULTIPLE_CHOICE_CHATGPT'):
-            self.assertTrue(instruction.check_following(self.TEST_MULTIPLE_CHOICE_CHATGPT))
+            self.assertTrue(instruction.check_following(valid_questions))
         with self.subTest('test with TEST_MULTIPLE_CHOICE_CHATGPT_2'):
             self.assertFalse(instruction.check_following(self.TEST_MULTIPLE_CHOICE_CHATGPT_2))
         with self.subTest('test with TEST_MULTIPLE_CHOICE_FALSE_QUESTIONS'):
@@ -938,8 +962,13 @@ Zimbabwe"""
         instruction_id = 'custom:reverse_newline'
         instruction = instructions.ReverseNewlineChecker(instruction_id)
         instruction.build_description()
+        valid_countries = "\n".join(sorted(
+            instructions._AFRICAN_COUNTRIES_VI,
+            key=instructions._ascii_sort_key,
+            reverse=True,
+        ))
         with self.subTest('test with TEST_NEWLINE_COUNTRIES'):
-            self.assertTrue(instruction.check_following(self.TEST_NEWLINE_COUNTRIES))
+            self.assertTrue(instruction.check_following(valid_countries))
         with self.subTest('test with TEST_NEWLINE_COUNTRIES_FALSE_INCOMPLETE'):
             self.assertFalse(instruction.check_following(self.TEST_NEWLINE_COUNTRIES_FALSE_INCOMPLETE))
         with self.subTest('test with TEST_NEWLINE_COUNTRIES_FALSE_NEWLINE'):
@@ -947,8 +976,8 @@ Zimbabwe"""
         with self.subTest('test with TEST_NEWLINE_COUNTRIES_FALSE_ORDER'):
             self.assertFalse(instruction.check_following(self.TEST_NEWLINE_COUNTRIES_FALSE_ORDER))
 
-    TEST_REVERSE_CHAR_ORDER = """.su eht fo lobmys lanoitan eht si elgae dlab"""
-    TEST_REVERSE_CHAR_ORDER_FALSE = """The bald eagle is the national bird of the US."""
+    TEST_REVERSE_CHAR_ORDER = """.ỳK aoH aủc aig cốuq gnợưt uểib àl gnắrt uầđ gnàb iạĐ"""
+    TEST_REVERSE_CHAR_ORDER_FALSE = """Đại bàng đầu trắng là biểu tượng của Hoa Kỳ."""
     TEST_REVERSE_CHAR_ORDER_FALSE2 = """yekurt"""
     def test_character_reverse_order(self):
         instruction_id = 'custom:reverse_order'
@@ -961,8 +990,8 @@ Zimbabwe"""
         with self.subTest('test with TEST_REVERSE_CHAR_ORDER_FALSE2'):
             self.assertFalse(instruction.check_following(self.TEST_REVERSE_CHAR_ORDER_FALSE2))
 
-    TEST_REVERSE_ORDER = """.US the of bird national the is eagle bald The."""
-    TEST_REVERSE_ORDER_FALSE = """The bald eagle is the national bird of the US."""
+    TEST_REVERSE_ORDER = """.Kỳ Hoa của gia quốc tượng biểu là trắng đầu bàng đại"""
+    TEST_REVERSE_ORDER_FALSE = """Đại bàng đầu trắng là biểu tượng quốc gia của Hoa Kỳ."""
     TEST_REVERSE_ORDER_FALSE2 = """yekurt"""
     def test_word_reverse_order(self):
         instruction_id = 'custom:reverse_order'
@@ -989,14 +1018,20 @@ Zimbabwe"""
         instruction_id = 'custom:sentence_alphabet'
         instruction = instructions.SentenceAlphabetChecker(instruction_id)
         instruction.build_description()
+        first_words = [
+            "An", "Ăn", "Âm", "Bé", "Cây", "Dê", "Đêm", "Em", "Êm", "Gió",
+            "Hoa", "Im", "Khi", "Lá", "Mai", "Nam", "Ong", "Ông", "Ơi", "Phố",
+            "Qua", "Rồi", "Sáng", "Trời", "Ung", "Ưng", "Vui", "Xuân", "Yên",
+        ]
+        valid_story = " ".join(f"{word} đang kể chuyện." for word in first_words)
         with self.subTest('test with TEST_SENTENCE_ALPHABET'):
-            self.assertTrue(instruction.check_following(self.TEST_SENTENCE_ALPHABET))
+            self.assertTrue(instruction.check_following(valid_story))
         with self.subTest('test with TEST_SENTENCE_ALPHABET_FALSE'):
             self.assertFalse(instruction.check_following(self.TEST_SENTENCE_ALPHABET_FALSE))
         with self.subTest('test with TEST_SENTENCE_ALPHABET_FALSE2'):
             self.assertFalse(instruction.check_following(self.TEST_SENTENCE_ALPHABET_FALSE2))
 
-    TEST_EUROPE = """Reykjavík, Helsinki, Oslo, Tallinn, Stockholm, Riga, Moscow, Copenhagen, Vilnius, Minsk, Dublin, Berlin, Amsterdam, Warsaw, London, Brussels, Prague, Luxembourg, Paris, Vienna, Bratislava, Budapest, Vaduz, Chișinău, Bern, Ljubljana, Zagreb"""
+    TEST_EUROPE = """Reykjavík, Helsinki, Oslo, Tallinn, Stockholm, Riga, Moskva, Copenhagen, Vilnius, Minsk, Dublin, Berlin, Amsterdam, Warszawa, Luân Đôn, Brussels, Praha, Luxembourg, Paris, Viên, Bratislava, Budapest, Vaduz, Chișinău, Bern, Ljubljana, Zagreb"""
     TEST_EUROPE_WRONG_ORDER = """Zagreb, Reykjavík, Helsinki, Oslo, Tallinn, Stockholm, Riga, Moscow, Copenhagen, Vilnius, Minsk, Dublin, Berlin, Amsterdam, Warsaw, London, Brussels, Prague, Luxembourg, Paris, Vienna, Bratislava, Budapest, Vaduz, Chișinău, Bern, Ljubljana"""
     TEST_EUROPE_INCOMPLETE = """Reykjavík, Helsinki, Oslo, Tallinn, Stockholm, Riga, Moscow, Copenhagen, Vilnius, Minsk, Dublin, Berlin, Amsterdam, Warsaw, London, Brussels, Prague, Luxembourg, Paris, Vienna, Bratislava, Budapest, Vaduz, Chișinău, Bern, Ljubljana"""
     def test_europe_capitals(self):
@@ -1010,7 +1045,7 @@ Zimbabwe"""
         with self.subTest('test with TEST_EUROPE_INCOMPLETE'):
             self.assertFalse(instruction.check_following(self.TEST_EUROPE_INCOMPLETE))
 
-    TEST_CSV = """ID,Country,City,Year,Count
+    TEST_CSV = """Mã,Quốc gia,Thành phố,Năm,Số lượng
 1,USA,New York,2020,125
 2,Canada,Toronto,2019,87
 3,UK,London,2021,142
@@ -1035,7 +1070,7 @@ Zimbabwe"""
         with self.subTest('test with TEST_MISSING_COLUMN'):
             self.assertFalse(instruction.check_following(self.TEST_MISSING_COLUMN))
 
-    TEST_CSV_SPECIAL = """ProductID,Category,Brand,Price,Stock
+    TEST_CSV_SPECIAL = """Mã sản phẩm,Danh mục,Thương hiệu,Giá,Tồn kho
 1,Electronics,Samsung,599.99,120
 2,Appliances,Whirlpool,899.99,50
 3,Furniture,IKEA,299.99,200
@@ -1074,7 +1109,7 @@ Zimbabwe"""
         with self.subTest('test with TEST_MISSING_SPECIAL'):
             self.assertFalse(instruction.check_following(self.TEST_MISSING_SPECIAL))
 
-    TEST_CSV_QUOTES = """\"StudentID"\t "Subject"\t "Grade"\t "Semester"\t "Score"
+    TEST_CSV_QUOTES = """\"Mã sinh viên"\t"Môn học"\t"Xếp loại"\t"Học kỳ"\t"Điểm"
 "StudentID"\t "Subject"\t "Grade"\t "Semester"\t "Score"
 "StudentID"\t "Subject"\t "Grade"\t "Semester"\t "Score"
 "StudentID"\t "Subject"\t "Grade"\t "Semester"\t "Score\""""
@@ -1156,12 +1191,12 @@ Zimbabwe"""
         self.assertFalse(instruction.check_following(""), "expected False for empty response")
 
     def test_quote_explanation__handles_empty_string_after_stripping(self):
-        """Test that QuoteExplanationChecker handles strings that become empty after stripping digits/punctuation."""
+        """A response with no quoted phrase must fail the localized constraint."""
         instruction_id = 'format:quote_unquote'
         instruction = instructions.QuoteExplanationChecker(instruction_id)
         instruction.build_description()
-        self.assertTrue(instruction.check_following("123..."), "expected True for digits and punctuation only")
-        self.assertTrue(instruction.check_following(""), "expected True for empty string")
+        self.assertFalse(instruction.check_following("123..."))
+        self.assertFalse(instruction.check_following(""))
 
     def test_keyword_specific_position__case_insensitive_matching(self):
         """Test that KeywordSpecificPositionChecker matches keywords regardless of case."""
@@ -1226,13 +1261,13 @@ Zimbabwe"""
             self.assertFalse(instruction.check_following(self.TEST_KEYWORDS_MULTIPLE_MESSAGE_2))
 
     def test_sentence_alphabet__ignores_leading_punctuation(self):
-        """Test that SentenceAlphabetChecker ignores a leading quote or markdown on the first word."""
+        """The Vietnamese 29-letter sequence tolerates leading punctuation."""
         instruction_id = 'custom:sentence_alphabet'
         instruction = instructions.SentenceAlphabetChecker(instruction_id)
         instruction.build_description()
-        words = ["Apple", "Bears", "Cats", "Dogs", "Eagles", "Foxes", "Goats", "Hawks", "Ibex",
-                 "Jays", "Kites", "Lions", "Moose", "Newts", "Owls", "Pigs", "Quail", "Rats",
-                 "Seals", "Toads", "Urial", "Voles", "Wolves", "Xerus", "Yaks", "Zebras"]
+        words = ["An", "Ăn", "Âm", "Bé", "Cây", "Dê", "Đêm", "Em", "Êm", "Gió",
+                 "Hoa", "Im", "Khi", "Lá", "Mai", "Nam", "Ong", "Ông", "Ơi", "Phố",
+                 "Qua", "Rồi", "Sáng", "Trời", "Ung", "Ưng", "Vui", "Xuân", "Yên"]
         sentences = [f"{word} appear here now." for word in words]
         self.assertTrue(instruction.check_following(" ".join(sentences)))
         self.assertTrue(instruction.check_following('"' + sentences[0] + " " + " ".join(sentences[1:])))
@@ -1286,9 +1321,9 @@ class ClassicInstructionsTest(parameterized.TestCase):
             'change_case:english_capital')
         instruction.build_description()
         self.assertTrue(instruction.check_following(
-            'HELLO THIS IS AN ENGLISH SENTENCE'))
+            'ĐÂY LÀ MỘT CÂU TIẾNG VIỆT HOÀN CHỈNH'))
         self.assertFalse(instruction.check_following(
-            'hello this is an english sentence'))
+            'đây là một câu tiếng Việt hoàn chỉnh'))
 
     def test_two_responses(self):
         instruction = classic_instructions.TwoResponsesChecker(

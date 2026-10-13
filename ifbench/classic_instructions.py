@@ -25,6 +25,7 @@ import json
 import random
 import re
 import string
+import unicodedata
 from typing import Dict, Optional, Sequence, Union
 
 from absl import logging
@@ -40,6 +41,10 @@ _LANGUAGES = instructions_util.LANGUAGE_CODES
 
 # The relational operation for comparison.
 _COMPARISON_RELATION = ("less than", "at least")
+_COMPARISON_RELATION_VI = {
+    "less than": "ít hơn",
+    "at least": "ít nhất",
+}
 
 # The maximum number of sentences.
 _MAX_NUM_SENTENCES = 20
@@ -52,24 +57,23 @@ _NUM_BULLETS = 5
 
 # The options of constrained response.
 _CONSTRAINED_RESPONSE_OPTIONS = (
-    "My answer is yes.", "My answer is no.", "My answer is maybe.")
+    "Câu trả lời của tôi là có.", "Câu trả lời của tôi là không.",
+    "Câu trả lời của tôi là có thể.")
 
 # The options of starter keywords.
-_STARTER_OPTIONS = ("I would say", "My answer is", "I believe",
-                    "In my opinion", "I think", "I reckon", "I feel",
-                    "From my perspective", "As I see it", "According to me",
-                    "As far as I'm concerned", "To my understanding",
-                    "In my view", "My take on it is", "As per my perception")
+_STARTER_OPTIONS = ("Tôi cho rằng", "Câu trả lời của tôi là", "Tôi tin rằng",
+                    "Theo ý kiến của tôi", "Tôi nghĩ rằng", "Tôi cảm thấy rằng",
+                    "Theo góc nhìn của tôi", "Theo tôi thấy", "Theo hiểu biết của tôi")
 
 # The options of ending keywords.
-_ENDING_OPTIONS = ("Any other questions?",
-                   "Is there anything else I can help with?")
+_ENDING_OPTIONS = ("Bạn còn câu hỏi nào khác không?",
+                   "Tôi có thể giúp gì thêm cho bạn không?")
 
 # The number of highlighted sections.
 _NUM_HIGHLIGHTED_SECTIONS = 4
 
 # The section spliter.
-_SECTION_SPLITER = ("Section", "SECTION")
+_SECTION_SPLITER = ("Phần", "PHẦN")
 
 # The number of sections.
 _NUM_SECTIONS = 5
@@ -78,7 +82,7 @@ _NUM_SECTIONS = 5
 _NUM_PARAGRAPHS = 5
 
 # The postscript marker.
-_POSTSCRIPT_MARKER = ("P.S.", "P.P.S")
+_POSTSCRIPT_MARKER = ("T.B.", "T.B.2")
 
 # The number of keywords.
 _NUM_KEYWORDS = 2
@@ -103,10 +107,10 @@ class ResponseLanguageChecker(Instruction):
   def build_description(self, *, language = None):
     self._language = language
     if self._language is None:
-      self._language = random.choice(list(_LANGUAGES.keys()))
+      self._language = "vi"
     self._description_pattern = (
-        "Your ENTIRE response should be in {language} language, no other " +
-        "language is allowed.")
+        "TOÀN BỘ câu trả lời phải được viết bằng {language}; không được dùng " +
+        "ngôn ngữ nào khác.")
     return self._description_pattern.format(language=_LANGUAGES[self._language])
 
   def get_instruction_args(self):
@@ -123,7 +127,7 @@ class ResponseLanguageChecker(Instruction):
       logging.error(
           "Unable to detect language for text %s due to %s", value, e
       )
-      return True
+      return False
 
 
 class NumberOfSentences(Instruction):
@@ -144,9 +148,9 @@ class NumberOfSentences(Instruction):
       self._comparison_relation = relation
 
     self._description_pattern = (
-        "Your response should contain {relation} {num_sentences} sentences.")
+        "Câu trả lời phải có {relation} {num_sentences} câu.")
     return self._description_pattern.format(
-        relation=self._comparison_relation,
+        relation=_COMPARISON_RELATION_VI[self._comparison_relation],
         num_sentences=self._num_sentences_threshold)
 
   def get_instruction_args(self):
@@ -172,8 +176,8 @@ class PlaceholderChecker(Instruction):
     if self._num_placeholders is None or self._num_placeholders < 0:
       self._num_placeholders = random.randint(1, _NUM_PLACEHOLDERS)
     self._description_pattern = (
-        "The response must contain at least {num_placeholders} placeholders " +
-        "represented by square brackets, such as [address].")
+        "Câu trả lời phải có ít nhất {num_placeholders} chỗ trống được biểu " +
+        "diễn bằng ngoặc vuông, chẳng hạn [địa chỉ].")
     return self._description_pattern.format(
         num_placeholders=self._num_placeholders)
 
@@ -197,10 +201,10 @@ class BulletListChecker(Instruction):
     if self._num_bullets is None or self._num_bullets < 0:
       self._num_bullets = random.randint(1, _NUM_BULLETS)
     self._description_pattern = (
-        "Your answer must contain exactly {num_bullets} bullet points. " +
-        "Use the markdown bullet points such as:\n" +
-        "* This is point 1. \n" +
-        "* This is point 2")
+        "Câu trả lời phải có đúng {num_bullets} mục đầu dòng. " +
+        "Dùng cú pháp Markdown như sau:\n" +
+        "* Đây là mục 1. \n" +
+        "* Đây là mục 2")
     return self._description_pattern.format(num_bullets=self._num_bullets)
 
   def get_instruction_args(self):
@@ -210,8 +214,8 @@ class BulletListChecker(Instruction):
     return ["num_bullets"]
 
   def check_following(self, value):
-    bullet_lists = re.findall(r"^\s*\*[^\*].*$", value, flags=re.MULTILINE)
-    bullet_lists_2 = re.findall(r"^\s*-.*$", value, flags=re.MULTILINE)
+    bullet_lists = re.findall(r"^\s*\*\s+\S.*$", value, flags=re.MULTILINE)
+    bullet_lists_2 = re.findall(r"^\s*-\s+\S.*$", value, flags=re.MULTILINE)
     num_bullet_lists = len(bullet_lists) + len(bullet_lists_2)
     return num_bullet_lists == self._num_bullets
 
@@ -222,7 +226,7 @@ class ConstrainedResponseChecker(Instruction):
   def build_description(self):
     self._constrained_responses = _CONSTRAINED_RESPONSE_OPTIONS
     self._description_pattern = (
-        "Answer with one of the following options: {response_options}")
+        "Chỉ trả lời bằng một trong các phương án sau: {response_options}")
     return self._description_pattern.format(
         response_options=self._constrained_responses)
 
@@ -234,10 +238,7 @@ class ConstrainedResponseChecker(Instruction):
 
   def check_following(self, value):
     value = value.strip()
-    for constrained_response in self._constrained_responses:
-      if constrained_response in value:
-        return True
-    return False
+    return value in self._constrained_responses
 
 
 class ConstrainedStartChecker(Instruction):
@@ -248,8 +249,8 @@ class ConstrainedStartChecker(Instruction):
     if self._starter is None:
       self._starter = random.choice(_STARTER_OPTIONS)
     self._description_pattern = (
-        "During the conversation, when it is your turn, " +
-        "please always start with {starter}")
+        "Trong cuộc trò chuyện, mỗi khi đến lượt, hãy luôn bắt đầu bằng đúng " +
+        "cụm từ: {starter}")
     return self._description_pattern.format(starter=self._starter)
 
   def get_instruction_args(self):
@@ -259,9 +260,8 @@ class ConstrainedStartChecker(Instruction):
     return ["starter"]
 
   def check_following(self, value):
-    response_pattern = r"^\s*" + self._starter + r".*$"
-    response_with_constrained_start = re.search(response_pattern, value,
-                                                flags=re.MULTILINE)
+    response_pattern = r"^\s*" + re.escape(self._starter)
+    response_with_constrained_start = re.search(response_pattern, value)
     return True if response_with_constrained_start else False
 
 
@@ -274,8 +274,8 @@ class HighlightSectionChecker(Instruction):
       self._num_highlights = random.randint(1, _NUM_HIGHLIGHTED_SECTIONS)
 
     self._description_pattern = (
-        "Highlight at least {num_highlights} sections in your answer with " +
-        "markdown, i.e. *highlighted section*.")
+        "Hãy làm nổi bật ít nhất {num_highlights} đoạn bằng Markdown, ví dụ " +
+        "*đoạn được làm nổi bật*.")
 
     return self._description_pattern.format(num_highlights=self._num_highlights)
 
@@ -286,17 +286,8 @@ class HighlightSectionChecker(Instruction):
     return ["num_highlights"]
 
   def check_following(self, value):
-    num_highlights = 0
-    highlights = re.findall(r"\*[^\n\*]*\*", value)
-    double_highlights = re.findall(r"\*\*[^\n\*]*\*\*", value)
-    for highlight in highlights:
-      if highlight.strip("*").strip():
-        num_highlights += 1
-    for highlight in double_highlights:
-      if highlight.removeprefix("**").removesuffix("**").strip():
-        num_highlights += 1
-
-    return num_highlights >= self._num_highlights
+    highlights = re.findall(r"(?<!\*)\*{1,2}([^\n*]+?)\*{1,2}(?!\*)", value)
+    return sum(bool(highlight.strip()) for highlight in highlights) >= self._num_highlights
 
 
 class SectionChecker(Instruction):
@@ -313,12 +304,12 @@ class SectionChecker(Instruction):
       self._num_sections = random.randint(1, _NUM_SECTIONS)
 
     self._description_pattern = (
-        "Your response must have {num_sections} sections. Mark the beginning " +
-        "of each section with {section_spliter} X, such as:\n" +
+        "Câu trả lời phải có ít nhất {num_sections} phần. Đánh dấu đầu mỗi " +
+        "phần bằng {section_spliter} X, ví dụ:\n" +
         "{section_spliter} 1\n" +
-        "[content of section 1]\n" +
+        "[nội dung phần 1]\n" +
         "{section_spliter} 2\n" +
-        "[content of section 2]")
+        "[nội dung phần 2]")
 
     return self._description_pattern.format(
         num_sections=self._num_sections,
@@ -332,7 +323,8 @@ class SectionChecker(Instruction):
     return ["section_spliter", "num_sections"]
 
   def check_following(self, value):
-    section_splitter_patten = r"\s?" + self._section_spliter + r"\s?\d+\s?"
+    section_splitter_patten = r"(?:^|\n)\s*" + re.escape(
+        self._section_spliter) + r"\s+\d+\s*(?:\n|$)"
     sections = re.split(section_splitter_patten, value)
     num_sections = len(sections) - 1
     return num_sections >= self._num_sections
@@ -347,8 +339,8 @@ class ParagraphChecker(Instruction):
       self._num_paragraphs = random.randint(1, _NUM_PARAGRAPHS)
 
     self._description_pattern = (
-        "There should be {num_paragraphs} paragraphs. " +
-        "Paragraphs are separated with the markdown divider: ***")
+        "Câu trả lời phải có đúng {num_paragraphs} đoạn. " +
+        "Phân cách các đoạn bằng đường kẻ Markdown: ***")
 
     return self._description_pattern.format(num_paragraphs=self._num_paragraphs)
 
@@ -382,8 +374,7 @@ class PostscriptChecker(Instruction):
       self._postscript_marker = random.choice(_POSTSCRIPT_MARKER)
 
     self._description_pattern = (
-        "At the end of your response, please explicitly add a postscript " +
-        "starting with {postscript}")
+        "Ở cuối câu trả lời, hãy thêm một phần tái bút bắt đầu bằng {postscript}")
 
     return self._description_pattern.format(postscript=self._postscript_marker)
 
@@ -395,13 +386,9 @@ class PostscriptChecker(Instruction):
 
   def check_following(self, value):
     value = value.lower()
-    if self._postscript_marker == "P.P.S":
-      postscript_pattern = r"\s*p\.\s?p\.\s?s.*$"
-    elif self._postscript_marker == "P.S.":
-      postscript_pattern = r"\s*p\.\s?s\..*$"
-    else:
-      postscript_pattern = r"\s*" + self._postscript_marker.lower() + r".*$"
-    postscript = re.findall(postscript_pattern, value, flags=re.MULTILINE)
+    postscript_pattern = r"(?:^|\n)\s*" + re.escape(
+        self._postscript_marker.lower()) + r"[^\n]*\s*$"
+    postscript = re.findall(postscript_pattern, value)
     return True if postscript else False
 
 
@@ -414,9 +401,8 @@ class RephraseChecker(Instruction):
                        "in the form of *change me*.")
 
     self._reference_without_change = original_message
-    self._description = ("Rephrasing: Your rephrased response should only" +
-                         "change the words/sentences in between two asterisks" +
-                         "such as *change me*.")
+    self._description = ("Viết lại: chỉ được thay đổi các từ hoặc câu nằm " +
+                         "giữa hai dấu sao, chẳng hạn *hãy đổi tôi*.")
     return self._description
 
   def get_instruction_args(self):
@@ -454,7 +440,7 @@ class KeywordChecker(Instruction):
       self._keywords = keywords
     self._keywords = sorted(self._keywords)
 
-    self._description_pattern = ("Include keywords {keywords} in the response.")
+    self._description_pattern = ("Câu trả lời phải chứa tất cả từ khóa sau: {keywords}.")
 
     return self._description_pattern.format(keywords=self._keywords)
 
@@ -466,7 +452,8 @@ class KeywordChecker(Instruction):
 
   def check_following(self, value):
     for keyword in self._keywords:
-      if not re.search(keyword, value, flags=re.IGNORECASE):
+      if not re.search(r"\b" + re.escape(keyword) + r"\b",
+                       value, flags=re.IGNORECASE):
         return False
     return True
 
@@ -494,12 +481,12 @@ class KeywordFrequencyChecker(Instruction):
       self._comparison_relation = relation
 
     self._description_pattern = (
-        "In your response, the word {keyword} should appear {relation} " +
-        "{frequency} times.")
+        "Trong câu trả lời, từ {keyword} phải xuất hiện {relation} " +
+        "{frequency} lần.")
 
     return self._description_pattern.format(
         keyword=self._keyword,
-        relation=self._comparison_relation,
+        relation=_COMPARISON_RELATION_VI[self._comparison_relation],
         frequency=self._frequency)
 
   def get_instruction_args(self):
@@ -512,7 +499,7 @@ class KeywordFrequencyChecker(Instruction):
 
   def check_following(self, value):
     actual_occurrences = len(re.findall(
-        self._keyword, value, flags=re.IGNORECASE))
+        r"\b" + re.escape(self._keyword) + r"\b", value, flags=re.IGNORECASE))
 
     if self._comparison_relation == _COMPARISON_RELATION[0]:
       return actual_occurrences < self._frequency
@@ -539,10 +526,11 @@ class NumberOfWords(Instruction):
       self._comparison_relation = relation
 
     self._description_pattern = (
-        "Answer with {relation} {num_words} words.")
+        "Trả lời bằng {relation} {num_words} đơn vị từ; mỗi chuỗi chữ cái hoặc "
+        "chữ số Unicode liên tiếp được tính là một đơn vị.")
 
     return self._description_pattern.format(
-        relation=self._comparison_relation,
+        relation=_COMPARISON_RELATION_VI[self._comparison_relation],
         num_words=self._num_words)
 
   def get_instruction_args(self):
@@ -566,8 +554,8 @@ class JsonFormat(Instruction):
 
   def build_description(self):
     self._description_pattern = (
-        "Entire output should be wrapped in JSON format. You can use markdown"
-        " ticks such as ```."
+        "Toàn bộ đầu ra phải là một giá trị JSON hợp lệ. Có thể bọc JSON trong "
+        "hàng rào mã Markdown ```."
     )
     return self._description_pattern
 
@@ -609,7 +597,7 @@ class ParagraphFirstWordCheck(Instruction):
         or self._nth_paragraph <= 0
         or self._nth_paragraph > self._num_paragraphs
     ):
-      self._nth_paragraph = random.randint(1, self._num_paragraphs + 1)
+      self._nth_paragraph = random.randint(1, self._num_paragraphs)
 
     self._first_word = first_word
     if self._first_word is None:
@@ -617,10 +605,9 @@ class ParagraphFirstWordCheck(Instruction):
     self._first_word = self._first_word.lower()
 
     self._description_pattern = (
-        "There should be {num_paragraphs} paragraphs. " +
-        "Paragraphs and only paragraphs are separated with each other by two " +
-        "new lines as if it was '\\n\\n' in python. " +
-        "Paragraph {nth_paragraph} must start with word {first_word}.")
+        "Câu trả lời phải có đúng {num_paragraphs} đoạn. Chỉ dùng đúng hai ký " +
+        "tự xuống dòng (tức '\\n\\n' trong Python) để phân cách các đoạn. " +
+        "Đoạn thứ {nth_paragraph} phải bắt đầu bằng từ {first_word}.")
 
     return self._description_pattern.format(
         num_paragraphs=self._num_paragraphs,
@@ -673,7 +660,7 @@ class KeySentenceChecker(Instruction):
 
   def build_description(self, key_sentences = None, num_sentences = None):
     if not key_sentences:
-      self._key_sentences = set(["For now, this is fine."])
+      self._key_sentences = set(["Hiện tại, như vậy là ổn."])
     else:
       self._key_sentences = key_sentences
 
@@ -683,7 +670,7 @@ class KeySentenceChecker(Instruction):
       self._num_sentences = num_sentences
 
     self._description_pattern = (
-        "Include {num_sentences} of the following sentences {key_sentences}"
+        "Hãy chèn đúng {num_sentences} câu trong tập câu sau: {key_sentences}"
     )
 
     return self._description_pattern.format(
@@ -718,7 +705,7 @@ class ForbiddenWords(Instruction):
       self._forbidden_words = list(set(forbidden_words))
     self._forbidden_words = sorted(self._forbidden_words)
     self._description_pattern = (
-        "Do not include keywords {forbidden_words} in the response."
+        "Không được dùng bất kỳ từ khóa nào sau đây trong câu trả lời: {forbidden_words}."
     )
 
     return self._description_pattern.format(
@@ -733,7 +720,7 @@ class ForbiddenWords(Instruction):
 
   def check_following(self, value):
     for word in self._forbidden_words:
-      if re.search(r"\b" + word + r"\b", value, flags=re.IGNORECASE):
+      if re.search(r"\b" + re.escape(word) + r"\b", value, flags=re.IGNORECASE):
         return False
     return True
 
@@ -746,13 +733,11 @@ class RephraseParagraph(Instruction):
     self._low = low
     self._high = high
 
-    self._description = ("Rephrase the following paragraph: " +
-                         "{original_paragraph}\nYour response should have " +
-                         "between {low} and {high} of the same words. " +
-                         "Words are the same if and only if all of the " +
-                         "letters, ignoring cases, are the same. For " +
-                         "example, 'run' is the same as 'Run' but different " +
-                         "to 'ran'.")
+    self._description = ("Hãy diễn đạt lại đoạn sau: {original_paragraph}\n" +
+                         "Câu trả lời phải có từ {low} đến {high} từ trùng với " +
+                         "đoạn gốc. Hai từ được xem là trùng khi toàn bộ chữ " +
+                         "cái giống nhau nếu không phân biệt hoa, thường; ví " +
+                         "dụ 'Nhà' trùng với 'nhà' nhưng khác 'nhàu'.")
 
     return self._description.format(original_paragraph=original_paragraph,
                                     low=self._low, high=self._high)
@@ -784,8 +769,8 @@ class TwoResponsesChecker(Instruction):
 
   def build_description(self):
     self._description_pattern = (
-        "Give two different responses. Responses and only responses should"
-        " be separated by 6 asterisk symbols: ******."
+        "Đưa ra hai câu trả lời khác nhau. Chỉ phân cách hai câu trả lời bằng "
+        "đúng 6 dấu sao: ******."
     )
     return self._description_pattern
 
@@ -819,10 +804,9 @@ class RepeatPromptThenAnswer(Instruction):
     else:
       self._prompt_to_repeat = prompt_to_repeat
     self._description_pattern = (
-        "First repeat the request word for word without change,"
-        " then give your answer (1. do not say any words or characters"
-        " before repeating the request; 2. the request you need to repeat"
-        " does not include this sentence)"
+        "Trước tiên, lặp lại nguyên văn yêu cầu rồi mới trả lời. (1) Không "
+        "viết bất kỳ từ hay ký tự nào trước phần lặp lại. (2) Câu chỉ dẫn này "
+        "không thuộc yêu cầu cần lặp lại."
     )
     return self._description_pattern
 
@@ -833,9 +817,11 @@ class RepeatPromptThenAnswer(Instruction):
     return ["prompt_to_repeat"]
 
   def check_following(self, value):
-    if value.strip().lower().startswith(self._prompt_to_repeat.strip().lower()):
-      return True
-    return False
+    stripped_value = value.strip()
+    prompt = self._prompt_to_repeat.strip()
+    if not stripped_value.casefold().startswith(prompt.casefold()):
+      return False
+    return bool(stripped_value[len(prompt):].strip())
 
 
 class EndChecker(Instruction):
@@ -848,8 +834,8 @@ class EndChecker(Instruction):
     if self._end_phrase is None:
       self._end_phrase = random.choice(_ENDING_OPTIONS)
     self._description_pattern = (
-        "Finish your response with this exact phrase {ender}. "
-        "No other words should follow this phrase.")
+        "Kết thúc câu trả lời bằng đúng cụm từ sau: {ender} Không được viết "
+        "thêm bất kỳ từ nào sau cụm từ đó.")
     return self._description_pattern.format(ender=self._end_phrase)
 
   def get_instruction_args(self):
@@ -869,8 +855,8 @@ class TitleChecker(Instruction):
 
   def build_description(self):
     self._description_pattern = (
-        "Your answer must contain a title, wrapped in double angular brackets,"
-        " such as <<poem of joy>>."
+        "Câu trả lời phải có một tiêu đề được bọc trong hai cặp ngoặc nhọn, "
+        "chẳng hạn <<bài thơ niềm vui>>."
     )
     return self._description_pattern
 
@@ -899,10 +885,10 @@ class LetterFrequencyChecker(Instruction):
     if (
         not letter
         or len(letter) > 1
-        or ord(letter.lower()) < 97
-        or ord(letter.lower()) > 122
+        or not letter.isalpha()
     ):
-      self._letter = random.choice(list(string.ascii_letters))
+      self._letter = random.choice(
+          list("aăâbcdđeêghiklmnoôơpqrstuưvxy"))
     else:
       self._letter = letter.strip()
     self._letter = self._letter.lower()
@@ -922,14 +908,14 @@ class LetterFrequencyChecker(Instruction):
       self._comparison_relation = let_relation
 
     self._description_pattern = (
-        "In your response, the letter {letter} should appear {let_relation}"
-        " {let_frequency} times."
+        "Trong câu trả lời, chữ cái {letter} phải xuất hiện {let_relation}"
+        " {let_frequency} lần."
     )
 
     return self._description_pattern.format(
         letter=self._letter,
         let_frequency=self._frequency,
-        let_relation=self._comparison_relation,
+        let_relation=_COMPARISON_RELATION_VI[self._comparison_relation],
     )
 
   def get_instruction_args(self):
@@ -941,7 +927,8 @@ class LetterFrequencyChecker(Instruction):
     return ["letter", "let_frequency", "let_relation"]
 
   def check_following(self, value):
-    value = value.lower()
+    value = unicodedata.normalize("NFC", value).lower()
+    self._letter = unicodedata.normalize("NFC", self._letter)
     letters = collections.Counter(value)
 
     if self._comparison_relation == _COMPARISON_RELATION[0]:
@@ -955,7 +942,7 @@ class CapitalLettersEnglishChecker(Instruction):
 
   def build_description(self):
     self._description_pattern = (
-        "Your entire response should be in English, and in all capital letters."
+        "Toàn bộ câu trả lời phải bằng tiếng Việt và mọi chữ cái phải viết hoa."
     )
     return self._description_pattern
 
@@ -968,12 +955,12 @@ class CapitalLettersEnglishChecker(Instruction):
   def check_following(self, value):
     assert isinstance(value, str)
     try:
-      return value.isupper() and langdetect.detect(value) == "en"
+      return value.isupper() and langdetect.detect(value) == "vi"
     except langdetect.LangDetectException as e:
       logging.error(
           "Unable to detect language for text %s due to %s", value, e
       )
-      return True
+      return False
 
 
 class LowercaseLettersEnglishChecker(Instruction):
@@ -981,8 +968,8 @@ class LowercaseLettersEnglishChecker(Instruction):
 
   def build_description(self):
     self._description_pattern = (
-        "Your entire response should be in English, and in all lowercase"
-        " letters. No capital letters are allowed."
+        "Toàn bộ câu trả lời phải bằng tiếng Việt và mọi chữ cái phải viết "
+        "thường; không được có chữ cái viết hoa."
     )
     return self._description_pattern
 
@@ -995,12 +982,12 @@ class LowercaseLettersEnglishChecker(Instruction):
   def check_following(self, value):
     assert isinstance(value, str)
     try:
-      return value.islower() and langdetect.detect(value) == "en"
+      return value.islower() and langdetect.detect(value) == "vi"
     except langdetect.LangDetectException as e:
       logging.error(
           "Unable to detect language for text %s due to %s", value, e
       )
-      return True
+      return False
 
 
 class CommaChecker(Instruction):
@@ -1008,7 +995,7 @@ class CommaChecker(Instruction):
 
   def build_description(self):
     self._description_pattern = (
-        "In your entire response, refrain from the use of any commas."
+        "Không được dùng dấu phẩy ở bất kỳ đâu trong câu trả lời."
     )
     return self._description_pattern
 
@@ -1041,12 +1028,13 @@ class CapitalWordFrequencyChecker(Instruction):
       )
 
     self._description_pattern = (
-        "In your response, words with all capital letters should appear"
-        " {relation} {frequency} times."
+        "Trong câu trả lời, số từ được viết hoàn toàn bằng chữ in hoa phải là"
+        " {relation} {frequency}."
     )
 
     return self._description_pattern.format(
-        frequency=self._frequency, relation=self._comparison_relation
+        frequency=self._frequency,
+        relation=_COMPARISON_RELATION_VI[self._comparison_relation]
     )
 
   def get_instruction_args(self):
@@ -1059,7 +1047,7 @@ class CapitalWordFrequencyChecker(Instruction):
     return ["capital_frequency", "capital_relation"]
 
   def check_following(self, value):
-    words = instructions_util.nltk.word_tokenize(value)
+    words = re.findall(r"[^\W_]+", value, flags=re.UNICODE)
     capital_words = [word for word in words if word.isupper()]
 
     capital_words = len(capital_words)
@@ -1075,7 +1063,7 @@ class QuotationChecker(Instruction):
 
   def build_description(self):
     self._description_pattern = (
-        "Wrap your entire response with double quotation marks."
+        "Bọc toàn bộ câu trả lời trong một cặp dấu ngoặc kép."
     )
     return self._description_pattern
 

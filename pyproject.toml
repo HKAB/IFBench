@@ -31,14 +31,13 @@ classifiers = [
 dependencies = [
     "absl-py",
     "langdetect",
-    "nltk",
     "immutabledict",
     "emoji",
-    "syllapy>=0.8.0",
     "httpx",
     "tqdm",
     "pydantic>=2",
     "pydantic-settings",
+    "openai>=1.0",
 ]
 
 [project.urls]
