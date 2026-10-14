@@ -65,24 +65,47 @@ Việt.
 
 ## Tạo dữ liệu train/validation cho RL
 
-Không cần cung cấp đầu vào để tạo ngay bộ dữ liệu mặc định gồm 1.000 mẫu train
-và 100 mẫu validation:
+Không cần cung cấp đầu vào để tạo ngay bộ dữ liệu `core` mặc định gồm 39 tác vụ
+đã qua kiểm tra thủ công, 1.000 mẫu train và 100 mẫu validation:
 
 ```bash
 uv run python generate_vi_rl_dataset.py
 ```
 
-Kết quả nằm trong `data/vi_rl/train.jsonl`, `data/vi_rl/val.jsonl` và
-`data/vi_rl/manifest.json`. Mỗi mẫu có các trường IFBench (`prompt`,
+Kết quả nằm trong `data/vi_rl_core/train.jsonl`, `data/vi_rl_core/val.jsonl` và
+`data/vi_rl_core/manifest.json`. Mỗi mẫu có các trường IFBench (`prompt`,
 `instruction_id_list`, `kwargs`) để chấm thưởng bằng bộ kiểm tra, đồng thời có
-trường `messages` thuận tiện cho pipeline RL dạng hội thoại. Chỉ 70 tác vụ trong
-`VIETNAMESE_RECOMMENDED_INSTRUCTION_IDS` được dùng; các tác vụ thử nghiệm bị
-loại mặc định.
+trường `messages` thuận tiện cho pipeline RL dạng hội thoại.
+
+Có ba lựa chọn cho `--task-set`:
+
+- `core`: 39 tác vụ có tín hiệu thưởng ổn định, dùng mặc định cho RLVR.
+- `hard`: 13 tác vụ hợp lý nhưng khó hoặc có reward thưa, dùng cho curriculum.
+- `all`: kết hợp 52 tác vụ của hai nhóm trên.
+
+Số lượng train và validation được điều khiển độc lập:
+
+```bash
+uv run python generate_vi_rl_dataset.py \
+  --task-set core \
+  --train-size 20000 \
+  --val-size 2000
+
+uv run python generate_vi_rl_dataset.py \
+  --task-set hard \
+  --train-size 5000 \
+  --val-size 500
+```
+
+Nếu không truyền `--output-dir`, kết quả lần lượt được ghi vào
+`data/vi_rl_core`, `data/vi_rl_hard` hoặc `data/vi_rl_all`, tránh ghi đè giữa
+các nhóm.
 
 Có thể dùng ngân hàng câu hỏi riêng ở dạng TXT hoặc JSONL:
 
 ```bash
 uv run python generate_vi_rl_dataset.py \
+  --task-set core \
   --base-prompts du_lieu_goc.jsonl \
   --prompt-field prompt \
   --train-size 10000 \
@@ -104,7 +127,7 @@ sau khi gián đoạn bằng `--resume`.
 export API_KEY="khóa-truy-cập-của-bạn"
 uv run python generate_and_verify.py \
   --api-base http://may-chu-vllm:8000/v1 \
-  --input-file data/vi_rl/val.jsonl \
+  --input-file data/vi_rl_core/val.jsonl \
   --workers 16 \
   --max-tokens 2048
 ```

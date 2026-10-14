@@ -6,12 +6,34 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from generate_vi_rl_dataset import DEFAULT_BASE_PROMPTS, generate_dataset
+from generate_vi_rl_dataset import (
+    CORE_INSTRUCTION_IDS,
+    DEFAULT_BASE_PROMPTS,
+    HARD_INSTRUCTION_IDS,
+    TASK_SETS,
+    generate_dataset,
+)
 from ifbench import instructions_registry
 from ifbench import instructions
 
 
 class VietnameseRLDatasetGenerationTest(unittest.TestCase):
+
+    def test_default_prompt_bank_is_large_and_unique(self):
+        self.assertGreaterEqual(len(DEFAULT_BASE_PROMPTS), 100)
+        self.assertEqual(len(set(DEFAULT_BASE_PROMPTS)),
+                         len(DEFAULT_BASE_PROMPTS))
+        self.assertTrue(all(len(prompt.split()) >= 2
+                            for prompt in DEFAULT_BASE_PROMPTS))
+
+    def test_audited_task_sets_are_disjoint_and_complete(self):
+        self.assertEqual(len(CORE_INSTRUCTION_IDS), 39)
+        self.assertEqual(len(HARD_INSTRUCTION_IDS), 13)
+        self.assertTrue(CORE_INSTRUCTION_IDS.isdisjoint(HARD_INSTRUCTION_IDS))
+        self.assertEqual(
+            TASK_SETS["all"], CORE_INSTRUCTION_IDS | HARD_INSTRUCTION_IDS)
+        self.assertTrue(TASK_SETS["all"].issubset(
+            instructions_registry.VIETNAMESE_RECOMMENDED_INSTRUCTION_IDS))
 
     def test_unique_word_checker_counts_all_words(self):
         checker = instructions.UniqueWordCountChecker("count:unique_word_count")
@@ -39,7 +61,10 @@ class VietnameseRLDatasetGenerationTest(unittest.TestCase):
             self.assertTrue({row["prompt"] for row in train}.isdisjoint(
                 row["prompt"] for row in val))
             self.assertFalse(set(manifest["instruction_ids"]) -
-                             instructions_registry.VIETNAMESE_RECOMMENDED_INSTRUCTION_IDS)
+                             CORE_INSTRUCTION_IDS)
+            self.assertEqual(manifest["task_set"], "core")
+            self.assertEqual(manifest["available_instruction_count"], 39)
+            self.assertEqual(set(manifest["instruction_ids"]), CORE_INSTRUCTION_IDS)
 
             for row in train + val:
                 self.assertEqual(row["messages"][0]["content"], row["prompt"])
@@ -51,6 +76,20 @@ class VietnameseRLDatasetGenerationTest(unittest.TestCase):
                     description = checker.build_description(**kwargs)
                     self.assertTrue(description)
                     self.assertEqual(checker.get_instruction_args() or {}, kwargs)
+
+    def test_hard_dataset_uses_only_hard_categories(self):
+        with tempfile.TemporaryDirectory() as directory:
+            manifest = generate_dataset(
+                output_dir=Path(directory),
+                prompts=list(DEFAULT_BASE_PROMPTS),
+                train_size=20,
+                val_size=10,
+                seed=23,
+                task_set="hard",
+            )
+            self.assertEqual(manifest["task_set"], "hard")
+            self.assertEqual(manifest["available_instruction_count"], 13)
+            self.assertEqual(set(manifest["instruction_ids"]), HARD_INSTRUCTION_IDS)
 
 
 if __name__ == "__main__":
